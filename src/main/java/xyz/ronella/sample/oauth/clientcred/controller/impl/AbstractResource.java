@@ -11,6 +11,11 @@ import xyz.ronella.trivial.handy.RegExMatcher;
 
 import java.util.regex.Matcher;
 
+/**
+ * A partial implementation of IResource.
+ * @author Ron Webb
+ * @since 1.0.0
+ */
 abstract public class AbstractResource implements IResource {
 
     @Inject
@@ -19,6 +24,10 @@ abstract public class AbstractResource implements IResource {
 
     private transient Matcher pathMatcher;
 
+    /**
+     * Return an implementation of IAuthService.
+     * @return An implementation of IAuthService.
+     */
     public IAuthService getAuthService() {
         return authService;
     }

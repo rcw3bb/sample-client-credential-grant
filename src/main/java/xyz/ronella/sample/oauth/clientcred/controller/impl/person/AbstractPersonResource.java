@@ -28,6 +28,10 @@ public abstract class AbstractPersonResource extends AbstractResource {
     @Named(PersonResources.RESOURCE_NAME)
     private IPersonService personService;
 
+    /**
+     * Returns an implementation of IPersonService.
+     * @return An implementation of IPersonService.
+     */
     protected IPersonService getPersonService() {
         return personService;
     }

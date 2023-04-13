@@ -30,6 +30,11 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * An implementation of IAuthService.
+ *
+ * @author Ron Webb
+ */
 public class AuthServiceImpl implements IAuthService {
 
     private static final LoggerPlus LOGGER_PLUS = new LoggerPlus(LoggerFactory.getLogger(AuthServiceImpl.class));

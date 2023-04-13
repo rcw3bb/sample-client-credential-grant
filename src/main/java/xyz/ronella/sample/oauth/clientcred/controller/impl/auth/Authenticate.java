@@ -16,6 +16,11 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.stream.Collectors;
 
+/**
+ * The class the handles the authentication endpoint.
+ *
+ * @author Ron Webb.
+ */
 public class Authenticate extends AbstractAuthResource {
 
     private static final LoggerPlus LOGGER_PLUS = new LoggerPlus(LoggerFactory.getLogger(Authenticate.class));
