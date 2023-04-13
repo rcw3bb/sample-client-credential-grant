@@ -2,6 +2,9 @@ package xyz.ronella.sample.oauth.clientcred.service.impl;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import org.slf4j.LoggerFactory;
+import xyz.ronella.logging.LoggerPlus;
 import xyz.ronella.sample.oauth.clientcred.config.AppConfig;
 import xyz.ronella.sample.oauth.clientcred.service.IAuthService;
 
@@ -29,34 +32,62 @@ import java.util.Optional;
 
 public class AuthServiceImpl implements IAuthService {
 
-    private String getJWKSURI(final String issuer) throws IOException, InterruptedException {
-        final var gson = new Gson();
-        final var confURL = issuer + "/.well-known/openid-configuration";
+    private static final LoggerPlus LOGGER_PLUS = new LoggerPlus(LoggerFactory.getLogger(AuthServiceImpl.class));
 
-        final var requestConf = HttpRequest.newBuilder()
-                .uri(URI.create(confURL))
-                .GET()
-                .build();
+    private static String JSON_OID_CONF;
 
-        final var responseConf = HttpClient.newBuilder().build().send(requestConf, HttpResponse.BodyHandlers.ofString());
-        final var jsonConf = gson.fromJson(responseConf.body(), JsonObject.class);
-        return jsonConf.get("jwks_uri").getAsString();
+    @Override
+    public Optional<String> getOIDConf(final String issuer) {
+        try (final var mLOG = LOGGER_PLUS.groupLog("JsonObject findKeyFromJWKS(final JsonArray keys, final String keyId)")) {
+            try {
+                if (JSON_OID_CONF == null) {
+                    final var confURL = issuer + "/.well-known/openid-configuration";
+
+                    final var requestConf = HttpRequest.newBuilder()
+                            .uri(URI.create(confURL))
+                            .GET()
+                            .build();
+
+                    final var responseConf = HttpClient.newBuilder().build().send(requestConf, HttpResponse.BodyHandlers.ofString());
+                    JSON_OID_CONF = responseConf.body();
+                }
+                return Optional.ofNullable(JSON_OID_CONF);
+            } catch (IOException | InterruptedException exception) {
+                mLOG.error(LOGGER_PLUS.getStackTraceAsString(exception));
+                throw new RuntimeException(exception);
+            }
+        }
+    }
+
+    @Override
+    public String getJwksURI(String issuer) {
+        final var oidConf = getOIDConf(issuer);
+        return oidConf.map(s -> new Gson().fromJson(s, JsonObject.class).get("jwks_uri").getAsString()).orElse(null);
+    }
+
+    @Override
+    public String getTokenEndpoint(String issuer) {
+        final var oidConf = getOIDConf(issuer);
+        return oidConf.map(s -> new Gson().fromJson(s, JsonObject.class).get("token_endpoint").getAsString()).orElse(null);
     }
 
     private JsonObject findKeyFromJWKS(final JsonArray keys, final String keyId) {
-        JsonObject key = null;
-        for (int i = 0; i < keys.size(); i++) {
-            final var k = keys.get(i);
-            final var kObj = k.getAsJsonObject();
-            if (kObj.get("kid").getAsString().equals(keyId)) {
-                key = kObj;
-                break;
+        try (final var mLOG = LOGGER_PLUS.groupLog("JsonObject findKeyFromJWKS(final JsonArray keys, final String keyId)")) {
+            final var optKey = keys.asList().stream()
+                    .map(JsonElement::getAsJsonObject)
+                    .filter(___key -> ___key.get("kid").getAsString().equals(keyId))
+                    .findFirst();
+
+            if (optKey.isPresent()) {
+                return optKey.get();
+            }
+
+            {
+                final var message = "RSA public key not found";
+                mLOG.error(message);
+                throw new RuntimeException(message);
             }
         }
-        if (key == null) {
-            throw new RuntimeException("RSA public key not found");
-        }
-        return key;
     }
 
     private RSAPublicKey getPublicKey(final String accessToken, final String jwksUri) throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException {
@@ -64,55 +95,60 @@ public class AuthServiceImpl implements IAuthService {
         final var rawHeader = accessToken.split("\\.")[0];
         final var header = new String(Base64.getUrlDecoder().decode(rawHeader), StandardCharsets.UTF_8);
         final var jsonHeader = gson.fromJson(header, JsonObject.class);
-        final var keyId = jsonHeader.get("kid").getAsString();
+        final var rawKeyId = jsonHeader.get("kid").getAsString();
         final var request = HttpRequest.newBuilder().uri(URI.create(jwksUri)).GET().build();
         final var response = HttpClient.newBuilder().build().send(request, HttpResponse.BodyHandlers.ofString());
         final var jsonResponse = gson.fromJson(response.body(), JsonObject.class);
-        final var keys = jsonResponse.getAsJsonArray("keys");
-        final var key = findKeyFromJWKS(keys, keyId);
-        final var modulus = key.get("n").getAsString();
-        final var exponent = key.get("e").getAsString();
-        final var n = new BigInteger(1, Base64.getUrlDecoder().decode(modulus));
-        final var e = new BigInteger(1, Base64.getUrlDecoder().decode(exponent));
-        final var spec = new RSAPublicKeySpec(n, e);
+        final var rawKeys = jsonResponse.getAsJsonArray("keys");
+        final var key = findKeyFromJWKS(rawKeys, rawKeyId);
+        final var rawModulus = key.get("n").getAsString();
+        final var rawExponent = key.get("e").getAsString();
+        final var modulus = new BigInteger(1, Base64.getUrlDecoder().decode(rawModulus));
+        final var exponent = new BigInteger(1, Base64.getUrlDecoder().decode(rawExponent));
+        final var spec = new RSAPublicKeySpec(modulus, exponent);
         final var factory = KeyFactory.getInstance("RSA");
 
         return (RSAPublicKey) factory.generatePublic(spec);
     }
 
     private Map<String, Claim> getClaims(final String accessToken, final RSAPublicKey publicKey, final String issuer) {
-        final var audience = AppConfig.INSTANCE.getAuthAudience();
-        final var algorithm = Algorithm.RSA256(publicKey, null);
-        final var jwtDecoded = JWT.require(algorithm).build().verify(accessToken);
-        final var claims = jwtDecoded.getClaims();
+        try (final var mLOG = LOGGER_PLUS.groupLog("Map<String, Claim> getClaims(final String accessToken, final RSAPublicKey publicKey, final String issuer)")) {
+            final var audience = AppConfig.INSTANCE.getAuthAudience();
+            final var algorithm = Algorithm.RSA256(publicKey, null);
+            final var jwtDecoded = JWT.require(algorithm).build().verify(accessToken);
+            final var claims = jwtDecoded.getClaims();
 
-        try {
-            final var jwtIssuer = claims.get("iss").asString();
-            final var jwtAudience = claims.get("aud").asString();
+            try {
+                final var jwtIssuer = claims.get("iss").asString();
+                final var jwtAudience = claims.get("aud").asString();
 
-            if (issuer.equals(jwtIssuer) && audience.equals(jwtAudience)) {
-                return claims;
+                if (issuer.equals(jwtIssuer) && audience.equals(jwtAudience)) {
+                    return claims;
+                }
+            } catch (NullPointerException npe) {
+                mLOG.error(LOGGER_PLUS.getStackTraceAsString(npe));
+                throw new RuntimeException(npe);
             }
-        }
-        catch (NullPointerException npe) {
-            throw new RuntimeException(npe);
-        }
 
-        return null;
+            return null;
+        }
     }
 
     @Override
     public Optional<Map<String, Claim>> getValidatedClaims(final String accessToken) {
-        final var issuer = AppConfig.INSTANCE.getAuthIssuer();
+        try (final var mLOG = LOGGER_PLUS.groupLog("Optional<Map<String, Claim>> getValidatedClaims(final String accessToken)")) {
+            final var issuer = AppConfig.INSTANCE.getAuthIssuer();
 
-        try {
-            final var jwksUri = getJWKSURI(issuer);
-            final var publicKey = getPublicKey(accessToken, jwksUri);
+            try {
+                final var rawJwksUri = getJwksURI(issuer);
+                final var publicKey = getPublicKey(accessToken, rawJwksUri);
 
-            return Optional.ofNullable(getClaims(accessToken, publicKey, issuer));
-        } catch (IOException | InterruptedException | NoSuchAlgorithmException | InvalidKeySpecException |
-                 JWTVerificationException e) {
-            throw new RuntimeException(e);
+                return Optional.ofNullable(getClaims(accessToken, publicKey, issuer));
+            } catch (IOException | InterruptedException | NoSuchAlgorithmException | InvalidKeySpecException |
+                     JWTVerificationException exception) {
+                mLOG.error(LOGGER_PLUS.getStackTraceAsString(exception));
+                throw new RuntimeException(exception);
+            }
         }
     }
 
