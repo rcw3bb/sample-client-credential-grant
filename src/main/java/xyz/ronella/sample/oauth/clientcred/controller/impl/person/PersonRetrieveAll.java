@@ -1,9 +1,6 @@
 package xyz.ronella.sample.oauth.clientcred.controller.impl.person;
 
-import xyz.ronella.sample.oauth.clientcred.commons.ResponseStatus;
 import xyz.ronella.sample.oauth.clientcred.wrapper.SimpleHttpExchange;
-
-import java.util.Optional;
 
 import static xyz.ronella.sample.oauth.clientcred.commons.Method.GET;
 

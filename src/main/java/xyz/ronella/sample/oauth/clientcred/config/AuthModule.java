@@ -10,11 +10,8 @@ import xyz.ronella.sample.oauth.clientcred.controller.IResource;
 import xyz.ronella.sample.oauth.clientcred.controller.IResources;
 import xyz.ronella.sample.oauth.clientcred.controller.impl.auth.AuthResources;
 import xyz.ronella.sample.oauth.clientcred.controller.impl.auth.Authenticate;
-import xyz.ronella.sample.oauth.clientcred.controller.impl.person.PersonResources;
 import xyz.ronella.sample.oauth.clientcred.service.IAuthService;
-import xyz.ronella.sample.oauth.clientcred.service.IPersonService;
 import xyz.ronella.sample.oauth.clientcred.service.impl.AuthServiceImpl;
-import xyz.ronella.sample.oauth.clientcred.service.impl.PersonServiceImpl;
 
 /**
  * The configuration to wiring all Authentication related resources.

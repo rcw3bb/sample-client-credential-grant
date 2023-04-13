@@ -112,26 +112,19 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     private Map<String, Claim> getClaims(final String accessToken, final RSAPublicKey publicKey, final String issuer) {
-        try (final var mLOG = LOGGER_PLUS.groupLog("Map<String, Claim> getClaims(final String accessToken, final RSAPublicKey publicKey, final String issuer)")) {
-            final var audience = AppConfig.INSTANCE.getAuthAudience();
-            final var algorithm = Algorithm.RSA256(publicKey, null);
-            final var jwtDecoded = JWT.require(algorithm).build().verify(accessToken);
-            final var claims = jwtDecoded.getClaims();
+        final var audience = AppConfig.INSTANCE.getAuthAudience();
+        final var algorithm = Algorithm.RSA256(publicKey, null);
+        final var jwtDecoded = JWT.require(algorithm).build().verify(accessToken);
+        final var claims = jwtDecoded.getClaims();
 
-            try {
-                final var jwtIssuer = claims.get("iss").asString();
-                final var jwtAudience = claims.get("aud").asString();
+        final var jwtIssuer = claims.get("iss").asString();
+        final var jwtAudience = claims.get("aud").asString();
 
-                if (issuer.equals(jwtIssuer) && audience.equals(jwtAudience)) {
-                    return claims;
-                }
-            } catch (NullPointerException npe) {
-                mLOG.error(LOGGER_PLUS.getStackTraceAsString(npe));
-                throw new RuntimeException(npe);
-            }
-
-            return null;
+        if (issuer.equals(jwtIssuer) && audience.equals(jwtAudience)) {
+            return claims;
         }
+
+        return Map.of();
     }
 
     @Override

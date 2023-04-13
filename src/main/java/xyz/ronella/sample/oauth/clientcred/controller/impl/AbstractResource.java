@@ -15,9 +15,9 @@ abstract public class AbstractResource implements IResource {
 
     @Inject
     @Named(AuthResources.RESOURCE_NAME)
-    private IAuthService authService;
+    private transient IAuthService authService;
 
-    private Matcher pathMatcher;
+    private transient Matcher pathMatcher;
 
     public IAuthService getAuthService() {
         return authService;
