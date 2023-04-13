@@ -1,10 +1,11 @@
 package xyz.ronella.sample.oauth.clientcred.controller.impl.auth;
 
+import org.slf4j.LoggerFactory;
+import xyz.ronella.logging.LoggerPlus;
 import xyz.ronella.sample.oauth.clientcred.commons.ResponseStatus;
 import xyz.ronella.sample.oauth.clientcred.config.AppConfig;
 import xyz.ronella.sample.oauth.clientcred.wrapper.SimpleHttpExchange;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -17,6 +18,8 @@ import java.util.stream.Collectors;
 
 public class Authenticate extends AbstractAuthResource {
 
+    private static final LoggerPlus LOGGER_PLUS = new LoggerPlus(LoggerFactory.getLogger(Authenticate.class));
+
     private String getBasicAuth() {
         final var appConfig = AppConfig.INSTANCE;
         final var clientId = appConfig.getClientId();
@@ -25,7 +28,7 @@ public class Authenticate extends AbstractAuthResource {
     }
 
     private HttpRequest createHTTPRequest() {
-        final var tokenEndpoint = AppConfig.INSTANCE.getTokenURL();
+        final String tokenEndpoint = getAuthService().getTokenEndpoint(AppConfig.INSTANCE.getAuthIssuer());
 
         final var params = new HashMap<String, String>();
         params.put("grant_type", "client_credentials");
@@ -43,19 +46,22 @@ public class Authenticate extends AbstractAuthResource {
     }
 
     @Override
-    public void process(SimpleHttpExchange simpleExchange) {
-        final var request = createHTTPRequest();
-        final var client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+    public void process(final SimpleHttpExchange simpleExchange) {
+        try (final var mLOG = LOGGER_PLUS.groupLog("void process(SimpleHttpExchange simpleExchange)")) {
 
-        try {
-            final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            try {
+                final var request = createHTTPRequest();
+                final var client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+                final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() == ResponseStatus.OK.getCode()) {
-                simpleExchange.sendJsonResponse(response.body());
+                if (response.statusCode() == ResponseStatus.OK.getCode()) {
+                    simpleExchange.sendJsonResponse(response.body());
+                }
+            } catch (Exception exception) {
+                mLOG.error(LOGGER_PLUS.getStackTraceAsString(exception));
+                simpleExchange.sendResponseCode(ResponseStatus.SERVICE_UNAVAILABLE);
+                throw new RuntimeException(exception);
             }
-        } catch (IOException | InterruptedException exception) {
-            simpleExchange.sendResponseText(ResponseStatus.BAD_REQUEST, "Error authorizing");
-            throw new RuntimeException(exception);
         }
     }
 

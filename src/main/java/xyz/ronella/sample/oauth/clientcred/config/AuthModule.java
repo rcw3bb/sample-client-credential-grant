@@ -25,6 +25,9 @@ import xyz.ronella.sample.oauth.clientcred.service.impl.PersonServiceImpl;
 final public class AuthModule extends AbstractModule {
 
     protected void configure() {
+        bind(IAuthService.class)
+                .annotatedWith(Names.named(AuthResources.RESOURCE_NAME))
+                .to(AuthServiceImpl.class);
         bind(IResources.class)
                 .annotatedWith(Names.named(AuthResources.RESOURCE_NAME))
                 .to(AuthResources.class);

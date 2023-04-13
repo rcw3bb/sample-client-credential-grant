@@ -71,14 +71,6 @@ final public class AppConfig {
     }
 
     /**
-     * Reads the value of the token.url.
-     * @return The value of the token.url.
-     */
-    public String getTokenURL() {
-        return getPropString("token.url").trim();
-    }
-
-    /**
      * Reads the value of the client.id.
      * @return The value of the client.id.
      */

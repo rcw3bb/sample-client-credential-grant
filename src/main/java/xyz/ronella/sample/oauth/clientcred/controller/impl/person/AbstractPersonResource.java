@@ -4,9 +4,7 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import xyz.ronella.sample.oauth.clientcred.commons.ResponseStatus;
 import xyz.ronella.sample.oauth.clientcred.controller.impl.AbstractResource;
-import xyz.ronella.sample.oauth.clientcred.controller.impl.auth.AuthResources;
 import xyz.ronella.sample.oauth.clientcred.model.Person;
-import xyz.ronella.sample.oauth.clientcred.service.IAuthService;
 import xyz.ronella.sample.oauth.clientcred.service.IPersonService;
 
 import xyz.ronella.sample.oauth.clientcred.wrapper.SimpleHttpExchange;
@@ -23,10 +21,6 @@ import java.util.Optional;
  */
 public abstract class AbstractPersonResource extends AbstractResource {
 
-    @Inject
-    @Named(AuthResources.RESOURCE_NAME)
-    private IAuthService authService;
-
     /**
      * An instance of IPersonService.
      */
@@ -36,10 +30,6 @@ public abstract class AbstractPersonResource extends AbstractResource {
 
     protected IPersonService getPersonService() {
         return personService;
-    }
-
-    public IAuthService getAuthService() {
-        return authService;
     }
 
     /**
@@ -100,9 +90,8 @@ public abstract class AbstractPersonResource extends AbstractResource {
             }
             catch(RuntimeException re){
                 re.printStackTrace(System.out);
+                simpleExchange.sendResponseCode(ResponseStatus.UNAUTHORIZED);
             }
         }
-
-        simpleExchange.sendResponseCode(ResponseStatus.UNAUTHORIZED);
     }
 }

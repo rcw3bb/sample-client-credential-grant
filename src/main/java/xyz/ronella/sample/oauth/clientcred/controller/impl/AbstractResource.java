@@ -1,7 +1,11 @@
 package xyz.ronella.sample.oauth.clientcred.controller.impl;
 
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import xyz.ronella.sample.oauth.clientcred.config.AppConfig;
 import xyz.ronella.sample.oauth.clientcred.controller.IResource;
+import xyz.ronella.sample.oauth.clientcred.controller.impl.auth.AuthResources;
+import xyz.ronella.sample.oauth.clientcred.service.IAuthService;
 import xyz.ronella.sample.oauth.clientcred.wrapper.SimpleHttpExchange;
 import xyz.ronella.trivial.handy.RegExMatcher;
 
@@ -9,7 +13,15 @@ import java.util.regex.Matcher;
 
 abstract public class AbstractResource implements IResource {
 
+    @Inject
+    @Named(AuthResources.RESOURCE_NAME)
+    private IAuthService authService;
+
     private Matcher pathMatcher;
+
+    public IAuthService getAuthService() {
+        return authService;
+    }
 
     /**
      * The Matcher basted on path pattern.
