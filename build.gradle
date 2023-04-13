@@ -1,0 +1,173 @@
+import java.nio.file.Paths
+
+plugins {
+    id 'application'
+    id 'org.javamodularity.moduleplugin' version '1.8.12'
+    id 'org.beryx.jlink' version '2.25.0'
+    id 'jacoco'
+    id 'pmd'
+    id "io.snyk.gradle.plugin.snykplugin" version "0.4"
+}
+
+group 'xyz.ronella.sample'
+version '1.0.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.14.0'
+    implementation 'com.google.inject:guice:5.1.0'
+    implementation 'xyz.ronella.casual:trivial-chunk:2.15.0'
+    implementation 'xyz.ronella.logging:logger-plus:1.2.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'com.auth0:java-jwt:4.4.0'
+
+    implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.19.0'
+    implementation 'org.apache.logging.log4j:log4j-api:2.19.0'
+    implementation 'org.apache.logging.log4j:log4j-core:2.19.0'
+
+    compileOnly 'org.projectlombok:lombok:1.18.24'
+
+    annotationProcessor 'org.projectlombok:lombok:1.18.24'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
+
+    testCompileOnly 'org.projectlombok:lombok:1.18.24'
+
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
+}
+
+application {
+    mainModule = moduleName
+    mainClass = 'xyz.ronella.sample.oauth.clientcred.Application'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+jlink {
+    options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
+    launcher{
+        moduleName = application.mainModule
+        mainClassName = application.mainClass
+        jvmArgs = ['-Dlog4j.configurationFile={{BIN_DIR}}\\conf\\log4j2.xml']
+    }
+    mergedModule {
+        additive = true
+        uses 'org.apache.logging.log4j.spi.Provider'
+        uses 'org.apache.logging.log4j.message.ThreadDumpMessage.ThreadInfoFactory'
+        uses 'org.apache.logging.log4j.core.util.ContextDataProvider'
+        uses 'org.apache.logging.log4j.util.PropertySource'
+        uses 'org.apache.logging.log4j.core.util.WatchEventService'
+    }
+    forceMerge('slf4j-api', 'log4j-api', 'jackson-annotations')
+    imageName = "${project.name}-${version}"
+}
+
+test {
+    dependsOn(pmdMain)
+    finalizedBy(jacocoTestReport)
+    useJUnitPlatform()
+}
+
+task preparePackage(group: 'build') {
+    doLast {
+        def projectName = "${project.name}-${version}"
+
+        def batchFile = "${project.name}.bat"
+        def batchPath = Paths.get(buildDir.absolutePath, projectName, batchFile).toFile()
+
+        def confDirectory = "conf"
+        def confPath = Paths.get(rootDir.absolutePath, confDirectory)
+
+        def jlinkTargetDir = Paths.get(buildDir.absolutePath, projectName)
+        def jlinkBinDir = Paths.get(jlinkTargetDir.toFile().absolutePath, "bin")
+        def jlinkConfDir = Paths.get(jlinkBinDir.toFile().absolutePath, "..", confDirectory)
+
+        def log4jFile = "log4j2.xml"
+        def log4jPath = Paths.get(jlinkConfDir.toFile().absolutePath, log4jFile).toFile()
+
+        def mainResources = sourceSets.main.resources.sourceDirectories.asPath
+
+        copy {
+            from(Paths.get(buildDir.absolutePath, projectName, "bin"))
+            into(Paths.get(buildDir.absolutePath, projectName))
+            include batchFile
+        }
+
+        copy {
+            from(confPath)
+            into(jlinkConfDir)
+        }
+
+        copy {
+            from(mainResources)
+            into(jlinkConfDir)
+        }
+
+        if (batchPath.exists()) {
+            def pattern = "set DIR=\"%~dp0\""
+            def replaceWith = "set DIR=\"%~dp0\\bin\""
+            def content = batchPath.text
+            def updatedContent = content.replace(pattern, replaceWith)
+            if (content != updatedContent) {
+                batchPath.write(updatedContent)
+            }
+        }
+
+        if (log4jPath.exists()) {
+            def pattern = "logs/"
+            def replaceWith = "../${pattern}"
+            def content = log4jPath.text
+            def updatedContent = content.replace(pattern, replaceWith)
+
+            pattern = "<Property name=\"prefix\">application</Property>"
+            replaceWith = "<Property name=\"prefix\">${project.name}</Property>"
+            updatedContent = updatedContent.replace(pattern, replaceWith)
+
+            if (content != updatedContent) {
+                log4jPath.write(updatedContent)
+            }
+
+        }
+    }
+}
+
+tasks.findByPath('jlink').finalizedBy(preparePackage)
+
+task packWin(group: 'distribution', dependsOn: ['jlink']) {
+    doLast{
+        def projectName = "${project.name}-${version}"
+        def jlinkOutputDir = Paths.get(buildDir.absolutePath, projectName)
+        def outputFile =  Paths.get(buildDir.absolutePath, "pack", "${projectName}-win64.zip")
+
+        ant.zip(destfile: outputFile) {
+            fileset(dir: jlinkOutputDir)
+        }
+    }
+}
+
+run {
+    standardInput = System.in
+}
+
+javadoc {
+    if(JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
+}
+
+pmd {
+    consoleOutput = true
+    toolVersion = "6.51.0"
+    rulesMinimumPriority = 5
+    ruleSetFiles = files('quality/pmd/java/custom.xml')
+    ruleSets = []
+}
+
+pmdTest.enabled = false
