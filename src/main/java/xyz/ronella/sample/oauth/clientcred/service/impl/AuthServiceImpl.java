@@ -26,6 +26,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
@@ -123,7 +124,9 @@ public class AuthServiceImpl implements IAuthService {
         final var claims = jwtDecoded.getClaims();
 
         final var jwtIssuer = claims.get("iss").asString();
-        final var jwtAudience = claims.get("aud").asString();
+        final var jwtAudience = Arrays.stream(claims.get("aud").asArray(String.class))
+                .filter(audience::equals)
+                .findFirst().orElse("");
 
         if (issuer.equals(jwtIssuer) && audience.equals(jwtAudience)) {
             return claims;

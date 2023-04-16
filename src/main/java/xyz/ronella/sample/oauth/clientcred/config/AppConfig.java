@@ -99,6 +99,7 @@ final public class AppConfig {
      * @return The value of the auth.audience.
      */
     public String getAuthAudience() {
-        return getPropString("auth.audience").trim();
+        final var audience = getPropString("auth.audience").trim();
+        return audience.isEmpty() ? getClientId() : audience;
     }
 }
