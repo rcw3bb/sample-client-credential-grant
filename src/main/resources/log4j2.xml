@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="INFO">
     <Properties>
-        <Property name="prefix">application</Property>
+        <Property name="prefix">@project.name@</Property>
         <Property name="filename">logs/${prefix}.log</Property>
     </Properties>
     <Appenders>

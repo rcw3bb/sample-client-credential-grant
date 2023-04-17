@@ -1,4 +1,5 @@
 import java.nio.file.Paths
+import org.apache.tools.ant.filters.ReplaceTokens
 
 plugins {
     id 'application'
@@ -40,6 +41,10 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
 }
 
+ext {
+    FILTER_TOKEN = ['project.name': project.name]
+}
+
 application {
     mainModule = moduleName
     mainClass = 'xyz.ronella.sample.oauth.clientcred.Application'
@@ -67,6 +72,10 @@ jlink {
     }
     forceMerge('slf4j-api', 'log4j-api', 'jackson-annotations')
     imageName = "${project.name}-${version}"
+}
+
+processResources {
+    filter(ReplaceTokens, tokens : FILTER_TOKEN)
 }
 
 test {
@@ -108,6 +117,7 @@ task preparePackage(group: 'build') {
         copy {
             from(mainResources)
             into(jlinkConfDir)
+            filter(ReplaceTokens, tokens : FILTER_TOKEN)
         }
 
         if (batchPath.exists()) {
@@ -125,10 +135,6 @@ task preparePackage(group: 'build') {
             def replaceWith = "../${pattern}"
             def content = log4jPath.text
             def updatedContent = content.replace(pattern, replaceWith)
-
-            pattern = "<Property name=\"prefix\">application</Property>"
-            replaceWith = "<Property name=\"prefix\">${project.name}</Property>"
-            updatedContent = updatedContent.replace(pattern, replaceWith)
 
             if (content != updatedContent) {
                 log4jPath.write(updatedContent)
