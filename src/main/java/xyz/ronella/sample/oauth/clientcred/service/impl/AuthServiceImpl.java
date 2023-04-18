@@ -43,7 +43,7 @@ public class AuthServiceImpl implements IAuthService {
     private static String JSON_OID_CONF;
 
     @Override
-    public Optional<String> getOIDConf(final String issuer) {
+    public Optional<String> getOIDCConf(final String issuer) {
         try (final var mLOG = LOGGER_PLUS.groupLog("JsonObject findKeyFromJWKS(final JsonArray keys, final String keyId)")) {
             try {
                 if (JSON_OID_CONF == null) {
@@ -67,13 +67,13 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     public String getJwksURI(String issuer) {
-        final var oidConf = getOIDConf(issuer);
+        final var oidConf = getOIDCConf(issuer);
         return oidConf.map(s -> new Gson().fromJson(s, JsonObject.class).get("jwks_uri").getAsString()).orElse(null);
     }
 
     @Override
     public String getTokenEndpoint(String issuer) {
-        final var oidConf = getOIDConf(issuer);
+        final var oidConf = getOIDCConf(issuer);
         return oidConf.map(s -> new Gson().fromJson(s, JsonObject.class).get("token_endpoint").getAsString()).orElse(null);
     }
 

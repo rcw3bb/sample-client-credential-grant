@@ -31,7 +31,7 @@ public interface IAuthService {
      * @param issuer The issuer.
      * @return The configuration based on the issue.
      */
-    Optional<String> getOIDConf(final String issuer);
+    Optional<String> getOIDCConf(final String issuer);
 
 
     /**
