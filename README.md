@@ -1,110 +1,72 @@
-# Java API Server Template
+# OAuth2 Client Credential Grant Sample Implementation
 
-A basic gradle project for a lightweight java api server development.
-
-This is a template that demonstrate the usage of java's HttpServer to implement a lightweight API. The sample resource is a Person, where you can do CRUD operations. 
-
-This template is implemented as java module so that we can package it independently. Hence, you just need to extract it and run it without the need to install the required java. The package generated is for windows only.
-
-Since this is just a template, you can always change any the implementations that you can see here.
+This is a sample implementation of client credential grant with java. The IDAM use is keycloak. 
 
 ## Pre-requisite
 
 * Java 17
 
-## Cloning
+## [Keycloak Configuration](docs/keycloak-configuration.md)
 
-1. **Create a fork** of this repository.
+**Keycloak** is the **IDAM** use in this sample implementation. If you don't have it configured yet do the procedure from [here](docs/keycloak-configuration.md).
 
-2. **Clone the forked repository** to your machine.
+## Classes of Interests
 
-3. **Test your cloned repository** using the following command:
+### Authenticate Class
 
-   ```
-   gradlew test
-   ```
-
-   > If it completes successfully your setup is good.
-
-## Packages
-
-### commons
-
-Contains all the common codes that can usually cross to any available packages.
-
-### config
-
-Must have the logic that involves configurations. 
-
-Aside from the **AppConfig class** *(i.e. more about this in **the application.properties file section**.)*, it also contains the **PersonModule class**. This class is where we should normally wires the services and respositories implementations. 
-
-The wiring is done through a **guice framework**.
-
-### controller
-
-The classes here must be responsible for handling the **resource endpoints**. 
-
-In this template, you will find all the Person resource CRUD implementations. Hence, one of this classes will be hit whenever you try to access a valid endpoint.
-
-### model
-
-Must hold the **persistence model** of the application. 
-
-In this template, a model of a person is being used. To avoid the boilerplate of implementing all the setter and getter methods, **lombok** is being used for this.
-
-### repository
-
-The classes here must be responsible for **managing the storage of the model**. Also, avoid the controller classes to access the classes here directly.
-
-The only implementation in this template is making the person model stored into an in-memory list. 
-
-### service
-
-The classes here must hold the **business logic** and must be the implementations that have access to repository classes.
-
-This template contains simple person services.
-
-### wrapper
-
-The classes here **wraps all the third-party classes**. So that, the other application classes knows only the wrappers and not the third-party classes. This is for **managing the third-party classes in one place**. This is beneficial if a third-party class has deprecated a method and recommends to use a replacement method. With wrapper, you only need to update the wrapper class and not all the invocations that spreads to different classes.
-
-## Application class
-
-The **Application class** is the bootstrap of the server. By default, the server is listening on port **8080**. You can change this by updating it in the **application.properties** file. If you are planning to run the server using IDE. This is the class to be ran.
-
-If you've packaged it and wants to run the server, execute the following batch file:
+The Authenticate class is controller class and is located in the following package:
 
 ```
-<APPLICATION_ROOT>\java-api-server.bat
+xyz.ronella.sample.oauth.clientcred.controller.impl.auth
 ```
 
-> The <APPLICATION_ROOT> is the location where you've extracted the package. *See the [build document](BUILD.md) on how to package the project.*
+This controller is the one responsible for acquiring the access token. Do it you using the following endpoint:
 
-If you ran the server, expect to see the following output:
+http://localhost:9011/auth
+
+> 9011 is the default port for this sample implementation.
+
+> This will only work if the application.properties file was updated accordingly. See the following section for this.
+
+### The AuthServiceImpl Classs
+
+The AuthServiceImpl class is a service class the support the Authenticate class and is located in the following package:
 
 ```
-The app started on port 8080
-Press any key to stop...
+xyz.ronella.sample.oauth.clientcred.service.impl
 ```
 
-To test it, while the server is running, **open a browser** and use the following address:
+Some of its functions are:
 
-http://localhost:8080/person
-
-Expect to see the following output:
-
-```json
-[{"id":1,"firstName":"Ronaldo","lastName":"Webb"},{"id":2,"firstName":"Juan","lastName":"Dela Cruz"}]
-```
-
-If you want to **stop the server**, just **press any key**.
+* Retrieving the OIDC Configuration.
+* Retrieving the JWKS URI.
+* Retrieving the Claims.
 
 ## The application.properties file
 
 The **application.properties file** holds the configurations specific to the application such as the following:
 
-* server.port
-* base.url
+* server.port 
+
+  This is the port to bind the API server. This has the default value of **9011**. 
+
+  > All the reference related to API server port will be 9011. If the field was modified to another value. Use that new value to all the testing.
+
+* client.id
+
+  The registered client ID in IDAM. This has the default value of **clientcredential**.
+
+* client.secret
+
+  This is secret associated to client.id. Use the **Finding out the Client Secret section** in [Keycloak Configuration](docs/keycloak-configuration.md).
+
+* auth.issuer
+
+  The issuer of the authorization issuer. This has the default of **http://localhost:8080/realms/myrealm**.
+
+* auth.audience
+
+  Must be set if the audience is different from the client.id. In this sample implementation the audience is equals to client.id. Thus, no need to set this.
 
 The application.properties file is located in the following directory:
 
@@ -113,14 +75,6 @@ The application.properties file is located in the following directory:
 ```
 
 > The <PROJECT_DIR> is the location where you've cloned the repository.
-
-The **class that reads this file** is the following:
-
-```
-AppConfig
-```
-
-If want to add more/update configuration settings you can **update this properties file** and don't forget to also update the class that reads it. 
 
 In the **actual package**, you can find this file in the following directory:
 
@@ -162,16 +116,42 @@ Doing this show load the available person resource endpoints.
 
 ## Testing the Endpoints
 
+Before testing always ensure the following:
+
+* The keyclock server is running *(see the Pre-requisite section of [Keycloak Configuration](docs/keycloak-configuration.md))*.
+* The client.secret in application.properties was updated accordingly.
+
+### Retrieving Access Token
+
+Do a GET request to the following endpoint:
+
+http://localhost:9011/auth
+
+This will return a JSON object with the following format:
+
+```json
+{
+"access_token":<ACCESS_TOKEN>,
+"expires_in":300,
+"refresh_expires_in":0,
+"token_type":"Bearer",
+"not-before-policy":0,
+"scope":"email clientcredential profile"
+}
+```
+
+Use the **access_token field** as the bearer token to authorization header of all the API requests.
+
 ### Creating a Person
 
 **Request Data**
 
-| Field  | Value                                           |
-| ------ | ----------------------------------------------- |
-| Method | POST                                            |
-| Header | Content-Type: application/json                  |
-| URL    | http://localhost:8080/person                    |
-| Body   | {"firstName": "Andrea","lastName": "Rodrigues"} |
+| Field  | Value                                                        |
+| ------ | ------------------------------------------------------------ |
+| Method | POST                                                         |
+| Header | Content-Type: application/json<br />Authorization: Bearer <ACCESS_TOKEN> |
+| URL    | http://localhost:9011/person                                 |
+| Body   | {"firstName": "Andrea","lastName": "Rodrigues"}              |
 
 *See the details of the URL pattern from the swagger definition.*
 
@@ -189,10 +169,11 @@ Doing this show load the available person resource endpoints.
 
 ### Retrieving all the Persons
 
-| Field  | Value                        |
-| ------ | ---------------------------- |
-| Method | GET                          |
-| URL    | http://localhost:8080/person |
+| Field  | Value                                |
+| ------ | ------------------------------------ |
+| Method | GET                                  |
+| Header | Authorization: Bearer <ACCESS_TOKEN> |
+| URL    | http://localhost:9011/person         |
 
 *See the details of the URL pattern from the swagger definition.*
 
@@ -210,10 +191,11 @@ Retrieving the the person with the ID 1.
 
 **Request Data**
 
-| Field  | Value                          |
-| ------ | ------------------------------ |
-| Method | GET                            |
-| URL    | http://localhost:8080/person/1 |
+| Field  | Value                                |
+| ------ | ------------------------------------ |
+| Method | GET                                  |
+| Header | Authorization: Bearer <ACCESS_TOKEN> |
+| URL    | http://localhost:9011/person/1       |
 
 *See the details of the URL pattern from the swagger definition.*
 
@@ -234,7 +216,8 @@ Updating the the person with the ID 3.
 | Field  | Value                                               |
 | ------ | --------------------------------------------------- |
 | Method | PUT                                                 |
-| URL    | http://localhost:8080/person                        |
+| Header | Authorization: Bearer <ACCESS_TOKEN>                |
+| URL    | http://localhost:9011/person                        |
 | Body   | {"id":3,"firstName":"Andrea","lastName":"Guevarra"} |
 
 *See the details of the URL pattern from the swagger definition.*
@@ -253,10 +236,11 @@ Deleting the the person with the ID 3.
 
 **Request Data**
 
-| Field  | Value                          |
-| ------ | ------------------------------ |
-| Method | DELETE                         |
-| URL    | http://localhost:8080/person/3 |
+| Field  | Value                                |
+| ------ | ------------------------------------ |
+| Method | DELETE                               |
+| Header | Authorization: Bearer <ACCESS_TOKEN> |
+| URL    | http://localhost:9011/person/3       |
 
 *See the details of the URL pattern from the swagger definition.*
 
