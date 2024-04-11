@@ -1,6 +1,16 @@
 # OAuth2 Client Credential Grant Sample Implementation
 
-This is a sample implementation of client credential grant with java. The IDAM use is keycloak. 
+This is a sample implementation of client credential grant with java. 
+
+- Does not involve the user.
+- Suitable for applications acting on their own behalf, like server-to-server communication.
+- Less secure as the client application uses its own credentials to get the access token.
+
+Here's a simplified breakdown:
+
+1. Your application directly requests an access token from the authorization server using your client ID and client secret.
+2. Authorization server validates your credentials and grants an access token if valid.
+3. Your application uses the access token to access resources on the resource server.
 
 ## Pre-requisite
 
